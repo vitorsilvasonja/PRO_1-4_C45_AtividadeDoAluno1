@@ -2,16 +2,18 @@ class Game {
   constructor() {
     this.resetTitle = createElement("h2");
     this.resetButton = createButton("");
-    
+
     this.leadeboardTitle = createElement("h2");
 
     this.leader1 = createElement("h2");
     this.leader2 = createElement("h2");
+
+    this.playerMove = false
   }
 
   getState() {
     var gameStateRef = database.ref("gameState");
-    gameStateRef.on("value", function(data) {
+    gameStateRef.on("value", function (data) {
       gameState = data.val();
     });
   }
@@ -96,6 +98,7 @@ class Game {
       image(track, 0, -height * 5, width, height * 6);
       this.showLeaderboard();
       this.showLife();
+      this.showFuelbar();
       //índice da matriz
       var index = 0;
       for (var plr in allPlayers) {
@@ -117,7 +120,7 @@ class Game {
 
           this.handleFuel(index);
           this.handlePowerCoins(index);
-          
+
           // Altere a posição da câmera na direção y
           camera.position.x = cars[index - 1].position.x;
           camera.position.y = cars[index - 1].position.y;
@@ -140,6 +143,10 @@ class Game {
         player.update();
         this.showRank();
       }
+      if (this.playerMove){
+      player.positionY+=5
+      player.update()
+      }
 
       drawSprites();
     }
@@ -147,16 +154,24 @@ class Game {
 
   handleFuel(index) {
     // Adicione o combustível
-    cars[index - 1].overlap(fuels, function(collector, collected) {
+    cars[index - 1].overlap(fuels, function (collector, collected) {
       player.fuel = 185;
       //collected (coletado) é o sprite no grupo de colecionáveis que desencadeia
       //o evento
       collected.remove();
     });
+
+    if (playrt.fuel > 0 && this.playerMove) {
+      player.fuel -= 0.3
+    }
+    if (player.fuel <= 0) {
+      gameState = 2
+      this.gameOver()
+    }
   }
 
   handlePowerCoins(index) {
-    cars[index - 1].overlap(powerCoins, function(collector, collected) {
+    cars[index - 1].overlap(powerCoins, function (collector, collected) {
       player.score += 21;
       player.update();
       //collected (coletado) é o sprite no grupo de colecionáveis que desencadeia
@@ -165,94 +180,118 @@ class Game {
     });
   }
 
-handleResetButton() {
-  this.resetButton.mousePressed(() => {
-    database.ref("/").set({
-      playerCount: 0,
-      gameState: 0,
-      players: {}
+  handleResetButton() {
+    this.resetButton.mousePressed(() => {
+      database.ref("/").set({
+        playerCount: 0,
+        gameState: 0,
+        players: {}
+      });
+      window.location.reload();
     });
-    window.location.reload();
-  });
-}
-
-showLife() {
-  push();
-  image(lifeImage, width / 2 - 130, height - player.positionY - 400, 20, 20);
-  fill("white");
-  rect(width / 2 - 100, height - player.positionY - 400, 185, 20);
-  fill("#f50057");
-  rect(width / 2 - 100, height - player.positionY - 400, player.life, 20);
-  noStroke();
-  pop();
-}
-showLeaderboard() {
-  var leader1, leader2;
-  var players = Object.values(allPlayers);
-  if (
-    (players[0].rank === 0 && players[1].rank === 0) ||
-    players[0].rank === 1
-  ) {
-    // &emsp;    Esta tag é usada para exibir quatro espaços.
-    leader1 =
-      players[0].rank +
-      "&emsp;" +
-      players[0].name +
-      "&emsp;" +
-      players[0].score;
-
-    leader2 =
-      players[1].rank +
-      "&emsp;" +
-      players[1].name +
-      "&emsp;" +
-      players[1].score;
   }
 
-  if (players[1].rank === 1) {
-    leader1 =
-      players[1].rank +
-      "&emsp;" +
-      players[1].name +
-      "&emsp;" +
-      players[1].score;
-
-    leader2 =
-      players[0].rank +
-      "&emsp;" +
-      players[0].name +
-      "&emsp;" +
-      players[0].score;
+  showLife() {
+    push();
+    image(lifeImage, width / 2 - 130, height - player.positionY - 300, 20, 20);
+    fill("white");
+    rect(width / 2 - 100, height - player.positionY - 300, 185, 20);
+    fill("#f50057");
+    rect(width / 2 - 100, height - player.positionY - 300, player.life, 20);
+    noStroke();
+    pop();
+  }
+  showFuelbar() {
+    push();
+    image(fuelImage, width / 2 - 130, height - player.positionY - 350, 20, 20);
+    fill("white");
+    rect(width / 2 - 100, height - player.positionY - 350, 185, 20);
+    fill("gold");
+    rect(width / 2 - 100, height - player.positionY - 350, player.fuel, 20);
+    noStroke();
+    pop();
   }
 
-  this.leader1.html(leader1);
-  this.leader2.html(leader2);
-}
 
-handlePlayerControls() {
-  if (keyIsDown(UP_ARROW)) {
-    player.positionY += 10;
-    player.update();
+  showLeaderboard() {
+    var leader1, leader2;
+    var players = Object.values(allPlayers);
+    if (
+      (players[0].rank === 0 && players[1].rank === 0) ||
+      players[0].rank === 1
+    ) {
+      // &emsp;    Esta tag é usada para exibir quatro espaços.
+      leader1 =
+        players[0].rank +
+        "&emsp;" +
+        players[0].name +
+        "&emsp;" +
+        players[0].score;
+
+      leader2 =
+        players[1].rank +
+        "&emsp;" +
+        players[1].name +
+        "&emsp;" +
+        players[1].score;
+    }
+
+    if (players[1].rank === 1) {
+      leader1 =
+        players[1].rank +
+        "&emsp;" +
+        players[1].name +
+        "&emsp;" +
+        players[1].score;
+
+      leader2 =
+        players[0].rank +
+        "&emsp;" +
+        players[0].name +
+        "&emsp;" +
+        players[0].score;
+    }
+
+    this.leader1.html(leader1);
+    this.leader2.html(leader2);
   }
 
-  if (keyIsDown(LEFT_ARROW) && player.positionX > width / 3 - 50) {
-    player.positionX -= 5;
-    player.update();
-  }
+  handlePlayerControls() {
+    if (keyIsDown(UP_ARROW)) {
+      player.positionY += 10;
+      player.update();
+      this.playerMove = true
+    }
 
-  if (keyIsDown(RIGHT_ARROW) && player.positionX < width / 2 + 300) {
-    player.positionX += 5;
-    player.update();
+    if (keyIsDown(LEFT_ARROW) && player.positionX > width / 3 - 50) {
+      player.positionX -= 5;
+      player.update();
+    }
+
+    if (keyIsDown(RIGHT_ARROW) && player.positionX < width / 2 + 300) {
+      player.positionX += 5;
+      player.update();
+    }
   }
-}
-showRank() {
-  swal({
-    title: `Incrível!${"\n"}Rank${"\n"}${player.rank}`,
-    text: "Você alcançou a linha de chegada com sucesso",
-    imageUrl:
-      "https://raw.githubusercontent.com/vishalgaddam873/p5-multiplayer-car-race-game/master/assets/cup.png",
-    imageSize: "100x100",
-    confirmButtonText: "Ok"
-  });
-}
+  showRank() {
+    swal({
+      title: `Incrível!${"\n"}Rank${"\n"}${player.rank}`,
+      text: "Você alcançou a linha de chegada com sucesso",
+      imageUrl:
+        "https://raw.githubusercontent.com/vishalgaddam873/p5-multiplayer-car-race-game/master/assets/cup.png",
+      imageSize: "100x100",
+      confirmButtonText: "Ok"
+    });
+  }
+  gameOver() {
+    swal({
+      title: "${player.rank},you lost",
+      text: "oops, you lost the race",
+      imageUrl:
+        "https://cdn.shopify.com/s/files/1/1061/1924/products/Thumbs_Down_Sign_Emoji_Icon_ios10_grande.png",
+      imageSize: "100x100",
+      confirmButtonText: "ok"
+    });
+
+  }
 }
